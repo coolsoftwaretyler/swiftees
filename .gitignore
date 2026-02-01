@@ -1,0 +1,9 @@
+# Swift build artifacts
+.build/
+.swiftpm/
+*.xcodeproj
+*.xcworkspace
+
+# Package manager
+.DS_Store
+Package.resolved
