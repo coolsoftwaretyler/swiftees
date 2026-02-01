@@ -1,0 +1,50 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Swift dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          binutils \
+          git \
+          gnupg2 \
+          libc6-dev \
+          libcurl4-openssl-dev \
+          libedit2 \
+          libgcc-11-dev \
+          libpython3.10 \
+          libsqlite3-0 \
+          libstdc++-11-dev \
+          libxml2-dev \
+          libz3-dev \
+          pkg-config \
+          tzdata \
+          unzip \
+          zlib1g-dev
+
+    - name: Setup Swift
+      uses: swift-actions/setup-swift@v2
+      with:
+        swift-version: '5.9'
+
+    - name: Verify Swift installation
+      run: swift --version
+
+    - name: Build Swift package
+      run: swift build -v
+
+    - name: Run the binary
+      run: swift run swiftees
