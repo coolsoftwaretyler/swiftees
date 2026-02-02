@@ -1,0 +1,124 @@
+name: Test262 Suite
+
+on:
+  pull_request:
+    branches: [ main ]
+
+# This workflow is allowed to fail - it's for tracking progress on test262 compliance
+jobs:
+  test262:
+    runs-on: ubuntu-latest
+    continue-on-error: true  # Allow this job to fail without failing the entire workflow
+
+    permissions:
+      pull-requests: write  # Allow commenting on PRs
+      contents: read
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Swift
+      uses: swift-actions/setup-swift@v2
+      with:
+        swift-version: '6.0'
+
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Build swiftees
+      run: |
+        echo "Building swiftees from source..."
+        swift build -c release
+        echo "Build complete!"
+
+    - name: Verify swiftees binary
+      run: |
+        ls -lh .build/release/swiftees
+        .build/release/swiftees
+
+    - name: Make test runner executable
+      run: chmod +x scripts/run_test262.py
+
+    - name: Run test262 suite (limited sample)
+      id: test262
+      run: |
+        # Run a limited number of tests for CI (full suite takes too long)
+        python3 scripts/run_test262.py \
+          --swiftees .build/release/swiftees \
+          --test262-dir test262 \
+          --max-tests 100 \
+          --output test262-results.json \
+          --pr-comment pr-comment.md
+      continue-on-error: true  # Don't fail the step if tests fail
+
+    - name: Upload test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test262-results
+        path: |
+          test262-results.json
+          pr-comment.md
+
+    - name: Comment PR with results
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const fs = require('fs');
+
+          // Read the PR comment file
+          let commentBody = '## Test262 Results\n\n⚠️ Results not available.';
+
+          try {
+            if (fs.existsSync('pr-comment.md')) {
+              commentBody = fs.readFileSync('pr-comment.md', 'utf8');
+            }
+          } catch (error) {
+            console.error('Error reading PR comment file:', error);
+          }
+
+          // Find existing comment
+          const { data: comments } = await github.rest.issues.listComments({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+          });
+
+          const botComment = comments.find(comment =>
+            comment.user.type === 'Bot' &&
+            comment.body.includes('Test262 Results')
+          );
+
+          // Create or update comment
+          if (botComment) {
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: botComment.id,
+              body: commentBody
+            });
+          } else {
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: commentBody
+            });
+          }
+
+    - name: Summary
+      if: always()
+      run: |
+        echo "### Test262 Run Complete! 🎉" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        if [ -f pr-comment.md ]; then
+          cat pr-comment.md >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ Results file not found" >> $GITHUB_STEP_SUMMARY
+        fi
