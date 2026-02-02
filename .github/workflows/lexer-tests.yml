@@ -1,0 +1,40 @@
+name: Lexer Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lexer-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Swift
+      uses: swift-actions/setup-swift@v2
+      with:
+        swift-version: '6.0'
+
+    - name: Print Swift version
+      run: swift --version
+
+    - name: Build
+      run: swift build -v
+
+    - name: Run lexer tests
+      run: |
+        echo "Running lexer test suite..."
+        swift test --filter LexerTests -v
+
+    - name: Test Summary
+      if: always()
+      run: |
+        echo "### Lexer Test Suite Results 🔍" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "This test suite validates TypeScript/JavaScript lexing capabilities." >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Note:** These tests are expected to fail initially until the lexer is fully implemented." >> $GITHUB_STEP_SUMMARY
