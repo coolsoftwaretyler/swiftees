@@ -82,13 +82,23 @@ class Test262Runner:
                 text=True
             )
 
-            # For now, since swiftees doesn't actually execute JS yet,
-            # we'll consider it a pass if it runs without crashing
-            # In the future, this should check for actual test assertions
-            if result.returncode == 0:
-                return True, ""
-            else:
+            # Check if swiftees actually executed JavaScript by looking at the output
+            # Current swiftees just loads the file and prints metadata, it doesn't execute
+            # We need to see actual test output to consider it a pass
+
+            # If we see "Swiftees: Loaded file" in output, it means the file was read
+            # but NOT executed, so this should be a failure
+            if "Swiftees: Loaded file" in result.stdout:
+                return False, "JavaScript execution not implemented (file loaded but not executed)"
+
+            # If there was a runtime error, that's also a failure
+            if result.returncode != 0:
                 return False, f"Exit code: {result.returncode}, stderr: {result.stderr[:200]}"
+
+            # If we get here with returncode 0 and no "Loaded file" message,
+            # it means JS was actually executed and completed successfully
+            # This is a real pass - but won't happen until we implement JS execution
+            return True, ""
 
         except subprocess.TimeoutExpired:
             return False, "Test timeout (>5s)"
